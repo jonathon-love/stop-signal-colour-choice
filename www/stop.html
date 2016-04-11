@@ -1,0 +1,177 @@
+<html>
+<head>
+    <title>Stop-signal Lab</title>
+
+    <link type="text/css" href="css/main.css" rel="Stylesheet" />
+    <!--link type="text/css" href="css/smoothness/jquery-ui-1.8.21.custom.css" rel="Stylesheet" /-->
+
+    <script type="text/javascript" src="js/jquery-1.7.2.js"></script>
+    <script type="text/javascript" src="js/jquery-ui-1.8.21.custom.js"></script>
+    <script type="text/javascript" src="js/underscore.js"></script>
+    <script type="text/javascript" src="js/data-sync.js"></script>
+    <script type="text/javascript" src="js/colour-chooser.js"></script>
+    <script type="text/javascript" src="js/task.js"></script>
+    <script type="text/javascript" src="js/view-instructions.js"></script>
+    <script type="text/javascript" src="js/go-task.js"></script>
+    <script type="text/javascript" src="js/stop-task.js"></script>
+    <script type="text/javascript" src="js/submit-data.js"></script>
+
+    <script type="text/javascript">
+
+'use strict';
+
+$(document).ready(function () {
+
+    var username
+    var gist = "5de3403fbc812fc6b0d3bd7d7c8ef228"
+    var dataSync
+    var trialData
+    var currentBlockNo = 0
+
+    var currentTask
+    var taskElement
+
+    var dialogBox = $('#dialog-box')
+    var fullscreen = $('#fullscreen')
+    var taskDiv = $('#task-div')
+
+    var difficultyTrans = { easy: 5, hard: 10 }
+
+    var recenterDialog = function() {
+
+        var height = $(window).height()
+        var width = $(window).width()
+
+        var dialogTop =  (height/2) - (dialogBox.height()/1.6)
+        var dialogLeft = (width /2) - (dialogBox.width()/2)
+
+        var taskDivTop =  (height/2) - (taskDiv.height()/1.8)
+        var taskDivLeft = (width /2) - (taskDiv.width()/2)
+
+        dialogBox.css( { top:dialogTop, left:dialogLeft } )
+        taskDiv.css( { top:taskDivTop, left:taskDivLeft } )
+    }
+
+    $(window).resize(recenterDialog);
+    recenterDialog();
+
+    var nextBlock = function() {
+
+        var blockInfo;
+        var ssd;
+        var meanRT;
+        var accuracy;
+
+        if (currentTask) {
+            blockInfo = trialData[currentBlockNo]
+            var results = currentTask.option()
+
+            if (_.has(results, 'ssd'))
+                ssd = results.ssd
+            if (_.has(results, 'meanRT'))
+                meanRT = results.meanRT
+            if (_.has(results, "accuracy"))
+                accuracy = results.accuracy
+
+            _.each(blockInfo, function(value, key) {
+                blockInfo[key] = results[key]
+            })
+
+            currentTask.destroy()
+        }
+
+        if (taskElement)
+            taskElement.remove()
+
+        currentBlockNo++
+
+        taskElement = $('<div></div>')
+        taskDiv.append(taskElement)
+
+        blockInfo = _.clone(trialData[currentBlockNo])
+        blockInfo.dataSync = dataSync
+        blockInfo.ssd = ssd
+        blockInfo.accuracy = accuracy
+        blockInfo.meanRT = meanRT
+
+        if (currentBlockNo < trialData.length - 1)
+            blockInfo.completed = nextBlock
+
+        taskElement[blockInfo.type](blockInfo);
+        currentTask = taskElement.data(blockInfo.type);
+    }
+
+    var begin = function() {
+
+        currentBlockNo = -1
+
+        nextBlock();
+
+        dialogBox.hide()
+        fullscreen.show()
+
+        $("body")
+            .removeClass("at-dialog")
+            .addClass("at-task")
+
+        $(window).keydown(function(event) {
+            if (event.keyCode == 8)
+                event.preventDefault()
+        })
+    }
+
+    var loadDataSource = function() {
+        dataSync = new DataSync("data/trials.php", username, "stop", gist)
+        dataSync.load(function(data) {
+            trialData = data
+            begin()
+        })
+    }
+
+    var checkLogin = function() {
+        username = $("#username").val()
+        loadDataSource()
+    }
+
+    $("#begin-button")
+        .button( { disabled : false } )
+        .click(checkLogin)
+
+    if ( ! $.browser.mozilla && ! $.browser.webkit) {
+        $("#login-div").hide()
+        $("#error-div").show()
+    }
+
+
+    dialogBox.show();
+
+});
+
+    </script>
+
+
+</head>
+
+<body class="at-dialog">
+    <div id="fullscreen" style="display: none">
+        <div id="task-div">
+            <div id="task"></div>
+        </div>
+    </div>
+    <div id="dialog-box">
+        <div id="login-div" class="dialog-content">
+            <p>Welcome to <strong>Stop-signal Lab</strong>.</p>
+            <p>Please place your web browser in fullscreen mode by pressing F11 if you haven't already</p>
+            <p>Please enter your SONA ID to begin</p>
+            <p>SONA ID : <input type="text" id="username"></input></p>
+            <button id="begin-button">Begin</button>
+        </div>
+        <div id="error-div" class="dialog-content" style="display: none">
+            <p>Welcome to <strong>Stop-signal Lab</strong>.</p>
+            <p>Unfortunately, your web browser is not supported.</p>
+            <p>Please use <a href="https://www.mozilla.org/">Mozilla Firefox</a> or <a href="https://www.google.com/chrome/">Google Chrome</a> instead.</p>
+        </div>
+    </div>
+</body>
+
+</html>
